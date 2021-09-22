@@ -11,13 +11,12 @@ def format_amount(amount):
     result = 0
     while True:
         try:
-            print("Please enter a valid number.")
             result = "${:,.2f}".format(float(input(amount)))
             
         except ValueError:
             if result != float():
-                print("Please enter a valid number.")
                 result = "${:,.2f}".format(float(input(amount)))
+            print("Please enter a valid number.")
       
         else:
              return result
