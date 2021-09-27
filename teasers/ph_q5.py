@@ -1,10 +1,6 @@
 import pandas as pd
 
 pd.options.mode.chained_assignment = None  # this is to suppress warnings from pandas when updating chained dataframe
-employee_data = None
-current_user = None
-expense_data = None
-has_made_changes = False
 
 
 def read_employee_data():
@@ -13,23 +9,24 @@ def read_employee_data():
 
 
 def load_expense_records():
-    global expense_data
-    expense_data = pd.read_csv("expense_records.csv", engine="python", quotechar='"')
+    df = pd.read_csv("expense_records.csv", engine="python", quotechar='"')
+    return df
 
 
-def login():
-    global employee_data, current_user
+def login(employee_data):
+    current_user = None
     while current_user is None:
         user_name = input("Please enter user ID: ")
         user_pwd = input("Enter password: ")
         result = employee_data.loc[lambda df: (df['login_password'] == user_pwd) & (df['employee_id'] == user_name), :]
         if len(result) > 0:
             current_user = result.iloc[0]
+            return current_user
         else:
             print("Wrong credentials. Please try again.\n")
 
 
-def display_menu():
+def display_menu(current_user):
     choice = None
     while choice is None:
         valid_choices = ["1", "2", "e"]
@@ -49,28 +46,29 @@ def display_menu():
     return choice
 
 
-def homepage():
+def homepage(current_user, employee_data, expense_data):
+    has_made_changes = False
     while True:
-        user_choice = display_menu()
+        user_choice = display_menu(current_user)
         print(f"Your choice is [{user_choice}].")
         if user_choice == "e":
-            save_all_data()
+            save_all_data(current_user, expense_data, has_made_changes)
             print("Bye!")
             exit()
         elif user_choice == '1':
-            save_all_data()
+            save_all_data(current_user, expense_data, has_made_changes)
         elif user_choice == '2':
-            show_personal_data()
+            show_personal_data(current_user)
         elif user_choice == "3":
-            verify_expense()
+            expense_data, has_made_changes = verify_expense(current_user, expense_data, has_made_changes)
         elif user_choice == '4':
             show_not_implemented()
         elif user_choice == '5':
             show_not_implemented()
 
 
-def show_personal_data():
-    print("\n\nHere are your personal infomration:")
+def show_personal_data(current_user):
+    print("\n\nHere are your personal information:")
     print(f"Employee ID: {current_user['employee_id']}")
     print(f"Name: {current_user['employee_name']}")
     print(f"Position: {current_user['position']}")
@@ -82,7 +80,7 @@ def show_not_implemented():
     print("[WARNING] This function has not been implemented. Look out for next change!")
 
 
-def save_all_data():
+def save_all_data(current_user, expense_data, has_made_changes):
     if has_made_changes and current_user['position'] == "Manager":
         print("Detected changes to expense data. Saving now...")
         expense_data.to_csv("expense_records.new.csv", index=False, quotechar='"')
@@ -92,12 +90,11 @@ def save_all_data():
     # the thousands comma which is different from original format
 
 
-def verify_expense():
-    global has_made_changes
+def verify_expense(current_user, expense_data, has_made_changes):
     # defense programming: need to ensure this is a manager before we proceed
     if current_user['position'] == "Manager" and expense_data is not None:
-        available_df = expense_data.loc[
-                       lambda df: (df['status'] == 'Pending') and (df['department'] == current_user['department']), :]
+        available_df = expense_data[
+            (expense_data['status'] == 'Pending') & (expense_data['department'] == current_user['department'])]
         # We only show expense records which are pending approval and those belonging to the department of the manager
         # Should not allow approval of expenses which are belonging to another department!
 
@@ -122,14 +119,14 @@ def verify_expense():
                 elif action == 's':
                     continue
         expense_data.update(available_df)
+    return expense_data, has_made_changes
 
 
 def main():
-    global employee_data
     employee_data = read_employee_data()
-    login()
-    load_expense_records()
-    homepage()
+    current_user = login(employee_data)
+    expense_data = load_expense_records()
+    homepage(current_user, employee_data, expense_data)
 
 
 if __name__ == "__main__":
